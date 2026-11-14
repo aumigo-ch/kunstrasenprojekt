@@ -93,8 +93,19 @@ function submitBooking(payload){
    if(!result.ok)return finish(new Error(result.error||'Reservierung fehlgeschlagen'));
    finish(null,result);
   };
-  const timer=setTimeout(()=>finish(new Error('Keine Bestätigung erhalten. Bitte zuerst den Reservierungsstand prüfen, bevor du nochmals buchst.')),25000);
   window.addEventListener('message',onMessage);document.body.append(frame,form);form.submit();
+  // Unabhaengige Bestaetigung via Google Sheets, falls iframe-postMessage blockiert wird.
+  const timer=setTimeout(()=>finish(new Error('Keine eindeutige Bestätigung erhalten. Bitte den Reservierungsstand prüfen und nicht nochmals buchen.')),30000);
+  (async()=>{
+   for(let attempt=0;attempt<12&&!finished;attempt++){
+    await new Promise(r=>setTimeout(r,1500));
+    if(finished)break;
+    try{
+     const result=await load(payload.requestId);
+     if(result&&result.ok&&result.confirmed===true){finish(null,result);break}
+    }catch(_e){}
+   }
+  })();
  });
 }
 $('booking').addEventListener('submit',async e=>{
